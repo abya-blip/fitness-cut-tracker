@@ -7,8 +7,10 @@
   <meta name="description" content="6-Week Fitness Cut & Training Tracker (23 Nov 2026 – 5 Jan 2027). Personal gym, running, macro, habit and body measurement dashboard." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Cut Tracker" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -56,6 +58,10 @@
             </div>
           </div>
         </div>
+
+        <button type="button" class="btn-secondary btn-sm btn-install-app" id="btn-install-pwa" data-action="install-pwa" title="Download & Install App on Phone">
+          📲 <span class="install-btn-text">Install App</span>
+        </button>
 
         <button type="button" class="btn-primary btn-quick-log" id="btn-open-quick-log" aria-label="Open Quick Log">
           <span>+ Quick Log</span>

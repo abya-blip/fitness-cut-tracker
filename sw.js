@@ -1,9 +1,12 @@
-const CACHE_NAME = 'fitness-cut-tracker-v3';
+const CACHE_NAME = 'fitness-cut-tracker-v4';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png',
   './manifest.json',
   './js/bundle.js',
   './js/data.js',

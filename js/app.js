@@ -63,9 +63,10 @@ let calendarMonthCursor = '2026-11-01'; // Used for month view navigation
 let selectedChartExercise = 'Barbell bench press';
 let editingRunId = null;
 
-// Rest timer state
+// Rest timer & PWA install state
 let restTimerInterval = null;
 let restSecondsRemaining = 0;
+let deferredInstallPrompt = null;
 
 export function showToast(message) {
   const container = document.getElementById('toast-container');
@@ -546,7 +547,7 @@ function renderDashboardView() {
         <form class="inline-weight-form" data-form="dashboard-weight" style="display:flex; gap:8px; align-items:flex-end; margin-top:auto;">
           <div style="flex:1;">
             <label for="dash-weight-input">Morning Weight (${dateStr}, kg)</label>
-            <input type="number" step="0.1" min="30" max="250" id="dash-weight-input" name="weightKg" placeholder="e.g. 74.8" value="${dailyLog.weightKg ?? ''}" required />
+            <input type="number" inputmode="decimal" step="0.1" min="30" max="250" id="dash-weight-input" name="weightKg" placeholder="e.g. 74.8" value="${dailyLog.weightKg ?? ''}" required />
           </div>
           <button type="submit" class="btn-primary">Save Weight</button>
         </form>
@@ -567,7 +568,7 @@ function renderDashboardView() {
           <div class="progress-track"><div class="progress-fill fill-success" style="width:${habitsStatus.completionPct}%"></div></div>
         </div>
 
-        <div class="habit-list" style="max-height: 220px; overflow-y:auto;">
+        <div class="habit-list">
           ${habitsStatus.coreItems.map(h => `
             <div class="habit-row ${h.completed ? 'habit-completed' : ''}" style="padding:6px 10px;">
               <button type="button" class="habit-check-btn" data-action="toggle-habit" data-habit-id="${h.id}" style="min-height:36px; font-size:0.86rem;">
@@ -643,27 +644,27 @@ function renderDashboardView() {
         <form data-form="dashboard-quick-multi" class="form-grid">
           <div>
             <label for="ql-cal">Add Calories (kcal)</label>
-            <input type="number" id="ql-cal" name="caloriesKcal" min="0" max="5000" placeholder="e.g. 550" />
+            <input type="number" inputmode="numeric" id="ql-cal" name="caloriesKcal" min="0" max="5000" placeholder="e.g. 550" />
           </div>
           <div>
             <label for="ql-pro">Add Protein (g)</label>
-            <input type="number" step="0.5" id="ql-pro" name="proteinG" min="0" max="300" placeholder="e.g. 40" />
+            <input type="number" inputmode="decimal" step="0.5" id="ql-pro" name="proteinG" min="0" max="300" placeholder="e.g. 40" />
           </div>
           <div>
             <label for="ql-carb">Add Carbs (g)</label>
-            <input type="number" step="0.5" id="ql-carb" name="carbohydrateG" min="0" max="500" placeholder="e.g. 60" />
+            <input type="number" inputmode="decimal" step="0.5" id="ql-carb" name="carbohydrateG" min="0" max="500" placeholder="e.g. 60" />
           </div>
           <div>
             <label for="ql-fat">Add Fat (g)</label>
-            <input type="number" step="0.5" id="ql-fat" name="fatG" min="0" max="200" placeholder="e.g. 15" />
+            <input type="number" inputmode="decimal" step="0.5" id="ql-fat" name="fatG" min="0" max="200" placeholder="e.g. 15" />
           </div>
           <div>
             <label for="ql-steps">Daily Steps Total</label>
-            <input type="number" id="ql-steps" name="steps" min="0" max="50000" placeholder="e.g. 9200" value="${dailyLog.steps ?? ''}" />
+            <input type="number" inputmode="numeric" id="ql-steps" name="steps" min="0" max="50000" placeholder="e.g. 9200" value="${dailyLog.steps ?? ''}" />
           </div>
           <div>
             <label for="ql-sleep">Sleep (hours)</label>
-            <input type="number" step="0.25" id="ql-sleep" name="sleepHours" min="0" max="24" placeholder="e.g. 8.0" value="${dailyLog.sleepHours ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.25" id="ql-sleep" name="sleepHours" min="0" max="24" placeholder="e.g. 8.0" value="${dailyLog.sleepHours ?? ''}" />
           </div>
           <div style="display:flex; align-items:flex-end;">
             <button type="submit" class="btn-primary" style="width:100%;">Save Quick Entry</button>
@@ -918,7 +919,7 @@ function renderWorkoutView() {
         <td>
           <div class="weight-stepper-cell">
             <button type="button" class="btn-step-mini" data-action="step-set-weight" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-delta="-2.5" title="-2.5 kg">-2.5</button>
-            <input type="number" step="0.5" min="0" max="500" class="set-input"
+            <input type="number" inputmode="decimal" step="0.5" min="0" max="500" class="set-input"
               aria-label="${escapeHtml(ex.exerciseName)} Set ${st.setNumber} Weight kg"
               data-action="update-set-field" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-field="weightKg"
               placeholder="kg" value="${st.weightKg ?? ''}" />
@@ -926,13 +927,13 @@ function renderWorkoutView() {
           </div>
         </td>
         <td>
-          <input type="number" step="1" min="0" max="600" class="set-input"
+          <input type="number" inputmode="numeric" step="1" min="0" max="600" class="set-input"
             aria-label="${escapeHtml(ex.exerciseName)} Set ${st.setNumber} ${ex.isTimed ? 'Seconds' : 'Reps'}"
             data-action="update-set-field" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-field="reps"
             placeholder="${ex.isTimed ? 'sec' : 'reps'}" value="${st.reps ?? ''}" />
         </td>
         <td>
-          <input type="number" step="0.5" min="1" max="10" class="set-input"
+          <input type="number" inputmode="decimal" step="0.5" min="1" max="10" class="set-input"
             aria-label="${escapeHtml(ex.exerciseName)} Set ${st.setNumber} RPE"
             data-action="update-set-field" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-field="rpe"
             placeholder="8" value="${st.rpe ?? ''}" />
@@ -1082,7 +1083,7 @@ function renderWorkoutView() {
         </div>
         <div>
           <label for="new-ex-sets">Planned Sets</label>
-          <input type="number" id="new-ex-sets" name="plannedSets" min="1" max="10" value="3" required />
+          <input type="number" inputmode="numeric" id="new-ex-sets" name="plannedSets" min="1" max="10" value="3" required />
         </div>
         <div>
           <label for="new-ex-reps">Rep Target</label>
@@ -1230,11 +1231,11 @@ function renderRunningView() {
       <form data-form="running-base-form" class="form-grid">
         <div>
           <label for="run-base-weekly">Current Weekly Mileage (km/week)</label>
-          <input type="number" step="0.5" min="0" max="150" id="run-base-weekly" name="currentWeeklyRunKm" placeholder="e.g. 15" value="${us.currentWeeklyRunKm ?? ''}" required />
+          <input type="number" inputmode="decimal" step="0.5" min="0" max="150" id="run-base-weekly" name="currentWeeklyRunKm" placeholder="e.g. 15" value="${us.currentWeeklyRunKm ?? ''}" required />
         </div>
         <div>
           <label for="run-base-long">Recent Comfortable Long Run (km)</label>
-          <input type="number" step="0.5" min="0" max="45" id="run-base-long" name="recentLongRunKm" placeholder="e.g. 7" value="${us.recentLongRunKm ?? ''}" required />
+          <input type="number" inputmode="decimal" step="0.5" min="0" max="45" id="run-base-long" name="recentLongRunKm" placeholder="e.g. 7" value="${us.recentLongRunKm ?? ''}" required />
         </div>
         <div style="display:flex; align-items:flex-end; gap:8px;">
           <button type="submit" class="btn-primary">Save Base Mileage</button>
@@ -1271,15 +1272,15 @@ function renderRunningView() {
             </div>
             <div>
               <label for="run-dist">Distance (km)</label>
-              <input type="number" step="0.01" min="0.1" max="100" id="run-dist" name="distanceKm" value="${defaultDist}" required />
+              <input type="number" inputmode="decimal" step="0.01" min="0.1" max="100" id="run-dist" name="distanceKm" value="${defaultDist}" required />
             </div>
             <div>
               <label for="run-mins">Duration (Minutes)</label>
-              <input type="number" step="1" min="0" max="600" id="run-mins" name="durationMinutes" value="${defaultMins}" required />
+              <input type="number" inputmode="numeric" step="1" min="0" max="600" id="run-mins" name="durationMinutes" value="${defaultMins}" required />
             </div>
             <div>
               <label for="run-secs">Duration (Seconds)</label>
-              <input type="number" step="1" min="0" max="59" id="run-secs" name="durationSecondsPart" value="${defaultSecs}" required />
+              <input type="number" inputmode="numeric" step="1" min="0" max="59" id="run-secs" name="durationSecondsPart" value="${defaultSecs}" required />
             </div>
             <div>
               <label for="run-pace-readonly">Calculated Avg Pace</label>
@@ -1287,11 +1288,11 @@ function renderRunningView() {
             </div>
             <div>
               <label for="run-hr">Avg Heart Rate (bpm, optional)</label>
-              <input type="number" min="40" max="230" id="run-hr" name="averageHeartRate" placeholder="e.g. 148" value="${existingRun?.averageHeartRate ?? ''}" />
+              <input type="number" inputmode="numeric" min="40" max="230" id="run-hr" name="averageHeartRate" placeholder="e.g. 148" value="${existingRun?.averageHeartRate ?? ''}" />
             </div>
             <div>
               <label for="run-effort">Effort Rating (1–10)</label>
-              <input type="number" min="1" max="10" id="run-effort" name="effort" value="${existingRun?.effort ?? (defaultType === 'easy' || defaultType === 'long' ? 4 : (defaultType === 'tempo' ? 7 : 8))}" required />
+              <input type="number" inputmode="numeric" min="1" max="10" id="run-effort" name="effort" value="${existingRun?.effort ?? (defaultType === 'easy' || defaultType === 'long' ? 4 : (defaultType === 'tempo' ? 7 : 8))}" required />
             </div>
             <div>
               <label for="run-surface">Route / Surface</label>
@@ -1511,23 +1512,23 @@ function renderNutritionView() {
             </div>
             <div>
               <label for="meal-pro">Protein (g)</label>
-              <input type="number" step="0.5" min="0" max="300" id="meal-pro" name="proteinG" placeholder="0" required />
+              <input type="number" inputmode="decimal" step="0.5" min="0" max="300" id="meal-pro" name="proteinG" placeholder="0" required />
             </div>
             <div>
               <label for="meal-carb">Carbohydrates (g)</label>
-              <input type="number" step="0.5" min="0" max="500" id="meal-carb" name="carbohydrateG" placeholder="0" required />
+              <input type="number" inputmode="decimal" step="0.5" min="0" max="500" id="meal-carb" name="carbohydrateG" placeholder="0" required />
             </div>
             <div>
               <label for="meal-fat">Fat (g)</label>
-              <input type="number" step="0.5" min="0" max="200" id="meal-fat" name="fatG" placeholder="0" required />
+              <input type="number" inputmode="decimal" step="0.5" min="0" max="200" id="meal-fat" name="fatG" placeholder="0" required />
             </div>
             <div>
               <label for="meal-cal">Calories (kcal)</label>
-              <input type="number" step="1" min="0" max="5000" id="meal-cal" name="caloriesKcal" placeholder="Auto or manual" required />
+              <input type="number" inputmode="numeric" step="1" min="0" max="5000" id="meal-cal" name="caloriesKcal" placeholder="Auto or manual" required />
             </div>
             <div>
               <label for="meal-water">Water (L, optional)</label>
-              <input type="number" step="0.1" min="0" max="10" id="meal-water" name="waterL" placeholder="0.0" />
+              <input type="number" inputmode="decimal" step="0.1" min="0" max="10" id="meal-water" name="waterL" placeholder="0.0" />
             </div>
           </div>
           <div class="form-actions">
@@ -1542,23 +1543,23 @@ function renderNutritionView() {
         <form data-form="direct-daily-macros" class="form-grid">
           <div>
             <label for="dir-cal">Total kcal</label>
-            <input type="number" id="dir-cal" name="caloriesKcal" min="0" value="${log.caloriesKcal}" />
+            <input type="number" inputmode="numeric" id="dir-cal" name="caloriesKcal" min="0" value="${log.caloriesKcal}" />
           </div>
           <div>
             <label for="dir-pro">Total Protein (g)</label>
-            <input type="number" step="0.5" id="dir-pro" name="proteinG" min="0" value="${log.proteinG}" />
+            <input type="number" inputmode="decimal" step="0.5" id="dir-pro" name="proteinG" min="0" value="${log.proteinG}" />
           </div>
           <div>
             <label for="dir-carb">Total Carbs (g)</label>
-            <input type="number" step="0.5" id="dir-carb" name="carbohydrateG" min="0" value="${log.carbohydrateG}" />
+            <input type="number" inputmode="decimal" step="0.5" id="dir-carb" name="carbohydrateG" min="0" value="${log.carbohydrateG}" />
           </div>
           <div>
             <label for="dir-fat">Total Fat (g)</label>
-            <input type="number" step="0.5" id="dir-fat" name="fatG" min="0" value="${log.fatG}" />
+            <input type="number" inputmode="decimal" step="0.5" id="dir-fat" name="fatG" min="0" value="${log.fatG}" />
           </div>
           <div>
             <label for="dir-water">Total Water (L)</label>
-            <input type="number" step="0.1" id="dir-water" name="waterL" min="0" value="${log.waterL}" />
+            <input type="number" inputmode="decimal" step="0.1" id="dir-water" name="waterL" min="0" value="${log.waterL}" />
           </div>
           <div style="display:flex; align-items:flex-end;">
             <button type="submit" class="btn-secondary" style="width:100%;">Update Totals</button>
@@ -1799,31 +1800,31 @@ function renderProgressView() {
         <div class="form-grid">
           <div>
             <label for="meas-weight">Body Weight (kg)</label>
-            <input type="number" step="0.1" min="30" max="250" id="meas-weight" name="weightKg" placeholder="e.g. 74.5" value="${mLog.weightKg ?? daily.weightKg ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.1" min="30" max="250" id="meas-weight" name="weightKg" placeholder="e.g. 74.5" value="${mLog.weightKg ?? daily.weightKg ?? ''}" />
           </div>
           <div>
             <label for="meas-waist">Waist (cm)</label>
-            <input type="number" step="0.1" min="40" max="200" id="meas-waist" name="waistCm" placeholder="e.g. 88.0" value="${mLog.waistCm ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.1" min="40" max="200" id="meas-waist" name="waistCm" placeholder="e.g. 88.0" value="${mLog.waistCm ?? ''}" />
           </div>
           <div>
             <label for="meas-chest">Chest (cm)</label>
-            <input type="number" step="0.1" min="50" max="200" id="meas-chest" name="chestCm" placeholder="e.g. 100.0" value="${mLog.chestCm ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.1" min="50" max="200" id="meas-chest" name="chestCm" placeholder="e.g. 100.0" value="${mLog.chestCm ?? ''}" />
           </div>
           <div>
             <label for="meas-hips">Hips (cm)</label>
-            <input type="number" step="0.1" min="50" max="200" id="meas-hips" name="hipsCm" placeholder="e.g. 97.0" value="${mLog.hipsCm ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.1" min="50" max="200" id="meas-hips" name="hipsCm" placeholder="e.g. 97.0" value="${mLog.hipsCm ?? ''}" />
           </div>
           <div>
             <label for="meas-rhr">Resting Heart Rate (bpm)</label>
-            <input type="number" min="30" max="150" id="meas-rhr" name="restingHeartRate" placeholder="e.g. 58" value="${mLog.restingHeartRate ?? ''}" />
+            <input type="number" inputmode="numeric" min="30" max="150" id="meas-rhr" name="restingHeartRate" placeholder="e.g. 58" value="${mLog.restingHeartRate ?? ''}" />
           </div>
           <div>
             <label for="meas-sleep">Average Sleep (hours)</label>
-            <input type="number" step="0.25" min="0" max="24" id="meas-sleep" name="sleepHours" placeholder="e.g. 8.0" value="${mLog.sleepHours ?? daily.sleepHours ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.25" min="0" max="24" id="meas-sleep" name="sleepHours" placeholder="e.g. 8.0" value="${mLog.sleepHours ?? daily.sleepHours ?? ''}" />
           </div>
           <div>
             <label for="meas-bf">Body-Fat Estimate (%, user est.)</label>
-            <input type="number" step="0.5" min="3" max="65" id="meas-bf" name="bodyFatEstimate" placeholder="e.g. 29.5" value="${mLog.bodyFatEstimate ?? ''}" />
+            <input type="number" inputmode="decimal" step="0.5" min="3" max="65" id="meas-bf" name="bodyFatEstimate" placeholder="e.g. 29.5" value="${mLog.bodyFatEstimate ?? ''}" />
           </div>
           <div>
             <label for="meas-photo">Progress Photo (Optional, Private)</label>
@@ -1989,51 +1990,51 @@ function renderSettingsView() {
         <div class="form-grid">
           <div>
             <label for="set-start-weight">Start Weight (kg)</label>
-            <input type="number" step="0.1" id="set-start-weight" name="startingWeightKg" value="${us.startingWeightKg}" required />
+            <input type="number" inputmode="decimal" step="0.1" id="set-start-weight" name="startingWeightKg" value="${us.startingWeightKg}" required />
           </div>
           <div>
             <label for="set-height">Height (cm)</label>
-            <input type="number" id="set-height" name="heightCm" value="${us.heightCm}" required />
+            <input type="number" inputmode="numeric" id="set-height" name="heightCm" value="${us.heightCm}" required />
           </div>
           <div>
             <label for="set-bf">Initial Body Fat Estimate (%)</label>
-            <input type="number" step="0.5" id="set-bf" name="estimatedBodyFatPct" value="${us.estimatedBodyFatPct}" />
+            <input type="number" inputmode="decimal" step="0.5" id="set-bf" name="estimatedBodyFatPct" value="${us.estimatedBodyFatPct}" />
           </div>
           <div>
             <label for="set-goal-min">Optional Goal Weight Min (kg)</label>
-            <input type="number" step="0.5" id="set-goal-min" name="targetWeightMinKg" value="${us.targetWeightMinKg}" />
+            <input type="number" inputmode="decimal" step="0.5" id="set-goal-min" name="targetWeightMinKg" value="${us.targetWeightMinKg}" />
           </div>
           <div>
             <label for="set-goal-max">Optional Goal Weight Max (kg)</label>
-            <input type="number" step="0.5" id="set-goal-max" name="targetWeightMaxKg" value="${us.targetWeightMaxKg}" />
+            <input type="number" inputmode="decimal" step="0.5" id="set-goal-max" name="targetWeightMaxKg" value="${us.targetWeightMaxKg}" />
           </div>
           <div>
             <label for="set-cal">Daily Calorie Target (kcal)</label>
-            <input type="number" id="set-cal" name="calorieTarget" value="${us.calorieTarget}" required />
+            <input type="number" inputmode="numeric" id="set-cal" name="calorieTarget" value="${us.calorieTarget}" required />
           </div>
           <div>
             <label for="set-pro">Protein Target (g)</label>
-            <input type="number" id="set-pro" name="proteinTargetG" value="${us.proteinTargetG}" required />
+            <input type="number" inputmode="numeric" id="set-pro" name="proteinTargetG" value="${us.proteinTargetG}" required />
           </div>
           <div>
             <label for="set-fat">Fat Target (g)</label>
-            <input type="number" id="set-fat" name="fatTargetG" value="${us.fatTargetG}" required />
+            <input type="number" inputmode="numeric" id="set-fat" name="fatTargetG" value="${us.fatTargetG}" required />
           </div>
           <div>
             <label for="set-carb">Carbohydrate Target (g)</label>
-            <input type="number" id="set-carb" name="carbohydrateTargetG" value="${us.carbohydrateTargetG}" required />
+            <input type="number" inputmode="numeric" id="set-carb" name="carbohydrateTargetG" value="${us.carbohydrateTargetG}" required />
           </div>
           <div>
             <label for="set-steps">Daily Steps Target</label>
-            <input type="number" id="set-steps" name="stepTarget" value="${us.stepTarget}" required />
+            <input type="number" inputmode="numeric" id="set-steps" name="stepTarget" value="${us.stepTarget}" required />
           </div>
           <div>
             <label for="set-water">Daily Water Target (L)</label>
-            <input type="number" step="0.1" id="set-water" name="waterTargetL" value="${us.waterTargetL}" required />
+            <input type="number" inputmode="decimal" step="0.1" id="set-water" name="waterTargetL" value="${us.waterTargetL}" required />
           </div>
           <div>
             <label for="set-sleep">Daily Sleep Target (hours)</label>
-            <input type="number" step="0.5" id="set-sleep" name="sleepTargetHours" value="${us.sleepTargetHours}" required />
+            <input type="number" inputmode="decimal" step="0.5" id="set-sleep" name="sleepTargetHours" value="${us.sleepTargetHours}" required />
           </div>
           <div>
             <label for="set-prog-start">Programme Start Date</label>
@@ -2092,10 +2093,10 @@ function renderSettingsView() {
               ${appState.runningPlan.map((rw, idx) => `
                 <tr>
                   <td><strong>Week ${rw.weekNumber}</strong></td>
-                  <td><input type="number" step="0.5" name="easyKm_${idx}" value="${rw.easyKm}" class="set-input" /></td>
+                  <td><input type="number" inputmode="decimal" step="0.5" name="easyKm_${idx}" value="${rw.easyKm}" class="set-input" /></td>
                   <td><input type="text" name="qualityLabel_${idx}" value="${escapeHtml(rw.qualityLabel)}" /></td>
-                  <td><input type="number" step="0.5" name="qualityEstimatedKm_${idx}" value="${rw.qualityEstimatedKm}" class="set-input" /></td>
-                  <td><input type="number" step="0.5" name="longKm_${idx}" value="${rw.longKm}" class="set-input" /></td>
+                  <td><input type="number" inputmode="decimal" step="0.5" name="qualityEstimatedKm_${idx}" value="${rw.qualityEstimatedKm}" class="set-input" /></td>
+                  <td><input type="number" inputmode="decimal" step="0.5" name="longKm_${idx}" value="${rw.longKm}" class="set-input" /></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -2122,7 +2123,7 @@ function renderSettingsView() {
               ${tpl.exercises.map((ex, eIdx) => `
                 <div style="display:grid; grid-template-columns: 1fr 58px 80px; gap:6px; margin-bottom:6px; align-items:center;">
                   <input type="text" value="${escapeHtml(ex.name)}" data-action="edit-tpl-ex" data-tpl="${tplKey}" data-idx="${eIdx}" data-field="name" aria-label="${tpl.name} exercise ${eIdx + 1} name" style="min-height:36px; font-size:0.82rem;" />
-                  <input type="number" min="1" max="10" value="${ex.plannedSets}" data-action="edit-tpl-ex" data-tpl="${tplKey}" data-idx="${eIdx}" data-field="plannedSets" aria-label="Planned sets" style="min-height:36px; font-size:0.82rem; text-align:center;" />
+                  <input type="number" inputmode="numeric" min="1" max="10" value="${ex.plannedSets}" data-action="edit-tpl-ex" data-tpl="${tplKey}" data-idx="${eIdx}" data-field="plannedSets" aria-label="Planned sets" style="min-height:36px; font-size:0.82rem; text-align:center;" />
                   <input type="text" value="${escapeHtml(ex.repTarget)}" data-action="edit-tpl-ex" data-tpl="${tplKey}" data-idx="${eIdx}" data-field="repTarget" aria-label="Rep target" style="min-height:36px; font-size:0.82rem;" />
                 </div>
               `).join('')}
@@ -2199,35 +2200,35 @@ function openQuickLogModal() {
       <div class="form-grid">
         <div>
           <label for="mql-weight">Morning Weight (kg)</label>
-          <input type="number" step="0.1" id="mql-weight" name="weightKg" value="${daily.weightKg ?? ''}" placeholder="e.g. 74.8" />
+          <input type="number" inputmode="decimal" step="0.1" id="mql-weight" name="weightKg" value="${daily.weightKg ?? ''}" placeholder="e.g. 74.8" />
         </div>
         <div>
           <label for="mql-water">Add Water (L)</label>
-          <input type="number" step="0.25" id="mql-water" name="addWaterL" placeholder="e.g. 0.5" />
+          <input type="number" inputmode="decimal" step="0.25" id="mql-water" name="addWaterL" placeholder="e.g. 0.5" />
         </div>
         <div>
           <label for="mql-cal">Add Calories (kcal)</label>
-          <input type="number" id="mql-cal" name="addCaloriesKcal" placeholder="e.g. 450" />
+          <input type="number" inputmode="numeric" id="mql-cal" name="addCaloriesKcal" placeholder="e.g. 450" />
         </div>
         <div>
           <label for="mql-pro">Add Protein (g)</label>
-          <input type="number" step="0.5" id="mql-pro" name="addProteinG" placeholder="e.g. 35" />
+          <input type="number" inputmode="decimal" step="0.5" id="mql-pro" name="addProteinG" placeholder="e.g. 35" />
         </div>
         <div>
           <label for="mql-carb">Add Carbs (g)</label>
-          <input type="number" step="0.5" id="mql-carb" name="addCarbsG" placeholder="e.g. 45" />
+          <input type="number" inputmode="decimal" step="0.5" id="mql-carb" name="addCarbsG" placeholder="e.g. 45" />
         </div>
         <div>
           <label for="mql-fat">Add Fat (g)</label>
-          <input type="number" step="0.5" id="mql-fat" name="addFatG" placeholder="e.g. 12" />
+          <input type="number" inputmode="decimal" step="0.5" id="mql-fat" name="addFatG" placeholder="e.g. 12" />
         </div>
         <div>
           <label for="mql-steps">Daily Steps</label>
-          <input type="number" id="mql-steps" name="steps" value="${daily.steps ?? ''}" placeholder="e.g. 8500" />
+          <input type="number" inputmode="numeric" id="mql-steps" name="steps" value="${daily.steps ?? ''}" placeholder="e.g. 8500" />
         </div>
         <div>
           <label for="mql-sleep">Sleep (hours)</label>
-          <input type="number" step="0.25" id="mql-sleep" name="sleepHours" value="${daily.sleepHours ?? ''}" placeholder="e.g. 8.0" />
+          <input type="number" inputmode="decimal" step="0.25" id="mql-sleep" name="sleepHours" value="${daily.sleepHours ?? ''}" placeholder="e.g. 8.0" />
         </div>
       </div>
       <div class="form-actions" style="margin-top:16px;">
@@ -2336,6 +2337,44 @@ function openResetConfirmModal() {
         <button type="button" class="btn-secondary" data-action="close-modal">Cancel</button>
       </div>
     </form>
+  `);
+}
+
+function openInstallAppModal() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  openModal(`
+    <div class="card-header" style="margin-bottom:12px;">
+      <h3 class="card-title" id="modal-title">📲 Install Cut Tracker on Your Phone</h3>
+      <button type="button" class="btn-icon btn-sm" data-action="close-modal" aria-label="Close modal">✕</button>
+    </div>
+    ${isStandalone ? `
+      <div class="alert-banner alert-info" style="margin-bottom:12px;">
+        <strong>✓ Already Installed!</strong> You are currently running Cut Tracker as a standalone mobile web app.
+      </div>
+    ` : `
+      <p style="font-size:0.9rem; color:var(--text-secondary); margin-top:0;">
+        Add <strong>Cut Tracker</strong> to your home screen so it launches full-screen like a native app and works offline at the gym.
+      </p>
+    `}
+    <div class="card" style="background:var(--bg-elevated); margin-bottom:10px; padding:14px;">
+      <div style="font-weight:700; margin-bottom:6px;">🤖 Android (Chrome / Edge / Samsung Internet)</div>
+      <ol style="margin:0; padding-left:18px; font-size:0.86rem; color:var(--text-secondary);">
+        <li>Open <strong>https://abhin-cut-tracker-2026.web.app</strong> in Chrome.</li>
+        <li>Tap the browser menu button <strong>⋮</strong> (top-right).</li>
+        <li>Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong> → confirm <strong>Install</strong>.</li>
+      </ol>
+    </div>
+    <div class="card" style="background:var(--bg-elevated); padding:14px;">
+      <div style="font-weight:700; margin-bottom:6px;">🍎 iPhone / iPad (Safari)</div>
+      <ol style="margin:0; padding-left:18px; font-size:0.86rem; color:var(--text-secondary);">
+        <li>Open <strong>https://abhin-cut-tracker-2026.web.app</strong> in Safari.</li>
+        <li>Tap the <strong>Share</strong> icon (square with upward arrow ⬆️).</li>
+        <li>Scroll down and tap <strong>"Add to Home Screen"</strong> → tap <strong>Add</strong>.</li>
+      </ol>
+    </div>
+    <div class="form-actions" style="margin-top:14px;">
+      <button type="button" class="btn-primary" data-action="close-modal">Got it</button>
+    </div>
   `);
 }
 
@@ -2537,6 +2576,23 @@ function handleActionClick(el, event) {
   switch (action) {
     case 'close-modal':
       closeModal();
+      break;
+
+    case 'install-pwa':
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then((choice) => {
+          if (choice && choice.outcome === 'accepted') {
+            showToast('📲 Installing Cut Tracker app...');
+          }
+          deferredInstallPrompt = null;
+          document.getElementById('btn-install-pwa')?.classList.remove('install-ready');
+        }).catch(() => {
+          openInstallAppModal();
+        });
+      } else {
+        openInstallAppModal();
+      }
       break;
 
     case 'open-quick-log':
@@ -3533,6 +3589,24 @@ function initApp() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const installBtn = document.getElementById('btn-install-pwa');
+    if (installBtn) {
+      installBtn.classList.add('install-ready');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    const installBtn = document.getElementById('btn-install-pwa');
+    if (installBtn) {
+      installBtn.classList.remove('install-ready');
+    }
+    showToast('✅ App installed on your device!');
+  });
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
