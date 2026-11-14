@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f141c" />
+  <meta name="description" content="6-Week Fitness Cut & Training Tracker (23 Nov 2026 – 5 Jan 2027). Personal gym, running, macro, habit and body measurement dashboard." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>6-Week Fitness Cut &amp; Training Tracker</title>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Top Header Bar -->
+  <header class="app-header">
+    <div class="header-top-row">
+      <div class="brand-group">
+        <div class="brand-logo" aria-hidden="true">⚡</div>
+        <div>
+          <h1 class="brand-title">Cut &amp; Training Tracker</h1>
+          <p class="brand-subtitle" id="header-programme-range">Programme: 23 Nov 2026 – 5 Jan 2027</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Built-in Gym Rest Timer Widget -->
+        <div class="rest-timer-pill" id="rest-timer-widget" aria-live="polite">
+          <button type="button" class="btn-timer-trigger" id="btn-toggle-timer-menu" title="Gym Rest Timer">
+            ⏱️ <span id="rest-timer-display">Rest Timer</span>
+          </button>
+          <div class="rest-timer-popover hidden" id="rest-timer-popover">
+            <div class="timer-popover-title">Set Rest Countdown</div>
+            <div class="timer-preset-row">
+              <button type="button" class="btn-chip" data-rest-sec="60">60s (Isolation)</button>
+              <button type="button" class="btn-chip" data-rest-sec="90">90s</button>
+              <button type="button" class="btn-chip" data-rest-sec="120">2m (Compound)</button>
+              <button type="button" class="btn-chip" data-rest-sec="180">3m (Heavy)</button>
+            </div>
+            <div class="timer-controls-row">
+              <button type="button" class="btn-secondary btn-sm" id="btn-cancel-timer">Reset / Stop</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary btn-quick-log" id="btn-open-quick-log" aria-label="Open Quick Log">
+          + Quick Log
+        </button>
+
+        <button type="button" class="btn-icon" id="btn-theme-toggle" aria-label="Toggle dark or light theme" title="Toggle Dark/Light Theme">
+          <span id="theme-icon" aria-hidden="true">☀️</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Global Active Date Bar (Local Date Safe) -->
+    <div class="date-nav-bar" role="region" aria-label="Selected tracking date">
+      <div class="date-controls">
+        <button type="button" class="btn-date-step" id="btn-prev-day" aria-label="Previous day" title="Previous day">◀</button>
+        <div class="date-picker-wrap">
+          <label for="global-date-input" class="sr-only">Active Date</label>
+          <input type="date" id="global-date-input" class="date-input" />
+          <span class="date-human-label" id="global-date-human">Loading date…</span>
+        </div>
+        <button type="button" class="btn-date-step" id="btn-next-day" aria-label="Next day" title="Next day">▶</button>
+      </div>
+
+      <div class="date-quick-jumps">
+        <span class="phase-pill" id="global-phase-badge">Phase</span>
+        <button type="button" class="btn-chip" id="btn-jump-today">Today</button>
+        <button type="button" class="btn-chip" id="btn-jump-prog-start" title="Jump to Programme Start: Monday, 23 Nov 2026">Day 1 (23 Nov)</button>
+      </div>
+    </div>
+
+    <!-- Mobile Horizontal Scrollable Section Pills (1-tap access to all 8 sections on mobile) -->
+    <nav class="mobile-top-nav" aria-label="Section navigation">
+      <button type="button" class="mobile-pill active" data-nav="dashboard">Dashboard</button>
+      <button type="button" class="mobile-pill" data-nav="calendar">Calendar</button>
+      <button type="button" class="mobile-pill" data-nav="workout">Workout</button>
+      <button type="button" class="mobile-pill" data-nav="running">Running</button>
+      <button type="button" class="mobile-pill" data-nav="nutrition">Nutrition</button>
+      <button type="button" class="mobile-pill" data-nav="habits">To-do &amp; Habits</button>
+      <button type="button" class="mobile-pill" data-nav="progress">Progress</button>
+      <button type="button" class="mobile-pill" data-nav="settings">Settings</button>
+    </nav>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <div class="app-shell">
+    <!-- Desktop / Tablet Sidebar Navigation -->
+    <aside class="sidebar-nav" aria-label="Main navigation">
+      <ul class="nav-list">
+        <li>
+          <button type="button" class="nav-btn active" data-nav="dashboard">
+            <span class="nav-icon" aria-hidden="true">📊</span>
+            <span class="nav-label">Dashboard</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="calendar">
+            <span class="nav-icon" aria-hidden="true">📅</span>
+            <span class="nav-label">Calendar</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="workout">
+            <span class="nav-icon" aria-hidden="true">🏋️</span>
+            <span class="nav-label">Workout</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="running">
+            <span class="nav-icon" aria-hidden="true">🏃</span>
+            <span class="nav-label">Running</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="nutrition">
+            <span class="nav-icon" aria-hidden="true">🥗</span>
+            <span class="nav-label">Nutrition</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="progress">
+            <span class="nav-icon" aria-hidden="true">📈</span>
+            <span class="nav-label">Progress</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="habits">
+            <span class="nav-icon" aria-hidden="true">☑️</span>
+            <span class="nav-label">To-do &amp; Habits</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-btn" data-nav="settings">
+            <span class="nav-icon" aria-hidden="true">⚙️</span>
+            <span class="nav-label">Settings</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-profile-card" id="sidebar-profile-summary">
+        <!-- Populated dynamically -->
+      </div>
+    </aside>
+
+    <!-- Dynamic View Container -->
+    <main id="main-content" class="main-content" tabindex="-1">
+      <div id="view-container"></div>
+
+      <!-- Persistent Medical & Target Estimate Disclaimer -->
+      <footer class="app-footer" role="contentinfo">
+        <div class="disclaimer-box">
+          <strong>Important Disclaimer:</strong> This application is a personal training and nutrition tracker, not a medical device. Calorie, macro, running mileage, and weight targets (including the optional 71–73 kg aspiration) are provisional estimates—not guaranteed outcomes—and do not infer body-fat percentage from scale weight. Adjust intake and training load based on real-world progress, recovery, and qualified professional or medical advice where appropriate. Stop exercise immediately and seek medical evaluation if you experience chest pain, fainting, unusual breathlessness, or persistent injury pain.
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Sticky Mobile Bottom Bar for Thumb-Friendly Gym Navigation -->
+  <nav class="mobile-bottom-nav" aria-label="Mobile bottom navigation">
+    <button type="button" class="bottom-nav-item active" data-nav="dashboard">
+      <span class="bnav-icon" aria-hidden="true">📊</span>
+      <span class="bnav-text">Home</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="calendar">
+      <span class="bnav-icon" aria-hidden="true">📅</span>
+      <span class="bnav-text">Calendar</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="workout">
+      <span class="bnav-icon" aria-hidden="true">🏋️</span>
+      <span class="bnav-text">Gym</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="running">
+      <span class="bnav-icon" aria-hidden="true">🏃</span>
+      <span class="bnav-text">Run</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="nutrition">
+      <span class="bnav-icon" aria-hidden="true">🥗</span>
+      <span class="bnav-text">Macros</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="habits">
+      <span class="bnav-icon" aria-hidden="true">☑️</span>
+      <span class="bnav-text">Habits</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="progress">
+      <span class="bnav-icon" aria-hidden="true">📈</span>
+      <span class="bnav-text">Charts</span>
+    </button>
+    <button type="button" class="bottom-nav-item" data-nav="settings">
+      <span class="bnav-icon" aria-hidden="true">⚙️</span>
+      <span class="bnav-text">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Modal Container -->
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card" id="modal-content"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script defer src="js/bundle.js"></script>
+</body>
+</html>
