@@ -1,8 +1,16 @@
 {
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json",
+    "database": "(default)",
+    "location": "nam5"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
       "firebase.json",
+      "firestore.rules",
+      "firestore.indexes.json",
       "**/.*",
       "**/node_modules/**",
       "fitness_cut_tracker_website_brief.md"

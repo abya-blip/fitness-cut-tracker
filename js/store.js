@@ -19,6 +19,121 @@ const STORAGE_KEY = 'fitness_cut_tracker_state_v1';
 const IDB_NAME = 'FitnessCutTrackerDB';
 const IDB_STORE = 'stateStore';
 
+export const FIREBASE_CONFIG = {
+  projectId: 'abhin-cut-tracker-2026',
+  appId: '1:292217013473:web:a8b3988494565aeb31e3a0',
+  storageBucket: 'abhin-cut-tracker-2026.firebasestorage.app',
+  apiKey: 'AIzaSyCdlsF8j8nttzcMgSHWDnv9L_dDNO-PZsU',
+  authDomain: 'abhin-cut-tracker-2026.firebaseapp.com',
+  messagingSenderId: '292217013473'
+};
+
+let firestoreDb = null;
+let firestoreFns = null;
+let cloudSyncTimer = null;
+let lastCloudSyncTime = null;
+let cloudSyncStatus = 'Local + Cloud Ready';
+let syncStatusListener = null;
+
+function notifySyncStatus(statusText) {
+  cloudSyncStatus = statusText;
+  if (typeof syncStatusListener === 'function') {
+    syncStatusListener(cloudSyncStatus, lastCloudSyncTime);
+  }
+}
+
+export function getCloudSyncStatus() {
+  return { status: cloudSyncStatus, lastSyncedAt: lastCloudSyncTime };
+}
+
+export async function initFirebaseCloudSync(currentState, onRemoteDataLoaded, onStatusChange) {
+  syncStatusListener = onStatusChange || null;
+  if (typeof window === 'undefined') return;
+  try {
+    notifySyncStatus('Connecting to Firebase…');
+    const appMod = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js');
+    const fsMod = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
+    const app = appMod.initializeApp(FIREBASE_CONFIG);
+    firestoreDb = fsMod.getFirestore(app);
+    firestoreFns = {
+      doc: fsMod.doc,
+      getDoc: fsMod.getDoc,
+      setDoc: fsMod.setDoc
+    };
+    notifySyncStatus('☁️ Firebase Connected');
+
+    // Check if remote document exists and pull if local has no logs yet
+    const syncKey = currentState?.userSettings?.cloudSyncKey || 'abhin-cut-tracker-default';
+    const docRef = firestoreFns.doc(firestoreDb, 'trackers', syncKey);
+    const snap = await firestoreFns.getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && data.state) {
+        const remoteState = typeof data.state === 'string' ? JSON.parse(data.state) : data.state;
+        lastCloudSyncTime = data.updatedAt || new Date().toISOString();
+        notifySyncStatus('☁️ Synced with Firebase');
+        const hasLocalLogs = Object.keys(currentState.dailyLogs || {}).length > 0 ||
+          (currentState.runLogs || []).length > 0 ||
+          Object.keys(currentState.workoutSessions || {}).length > 0;
+        if (!hasLocalLogs && typeof onRemoteDataLoaded === 'function') {
+          onRemoteDataLoaded(mergeWithDefaults(remoteState));
+        }
+      }
+    } else {
+      await pushStateToCloudNow(currentState);
+    }
+  } catch (err) {
+    console.warn('Firebase Cloud Sync offline or unavailable, using local storage:', err);
+    notifySyncStatus('⚡ Local Offline Mode');
+  }
+}
+
+export async function pushStateToCloudNow(state) {
+  if (!firestoreDb || !firestoreFns) return false;
+  try {
+    notifySyncStatus('☁️ Syncing…');
+    const syncKey = state?.userSettings?.cloudSyncKey || 'abhin-cut-tracker-default';
+    const docRef = firestoreFns.doc(firestoreDb, 'trackers', syncKey);
+    const nowIso = new Date().toISOString();
+    await firestoreFns.setDoc(docRef, {
+      state: JSON.stringify(state),
+      updatedAt: nowIso,
+      version: 1
+    });
+    lastCloudSyncTime = nowIso;
+    notifySyncStatus('☁️ Synced to Firebase');
+    return true;
+  } catch (err) {
+    console.warn('Cloud push error:', err);
+    notifySyncStatus('⚠️ Local Saved (Cloud Offline)');
+    return false;
+  }
+}
+
+export async function pullStateFromCloudNow(syncKey = 'abhin-cut-tracker-default') {
+  if (!firestoreDb || !firestoreFns) return null;
+  try {
+    notifySyncStatus('☁️ Pulling from Firebase…');
+    const docRef = firestoreFns.doc(firestoreDb, 'trackers', syncKey);
+    const snap = await firestoreFns.getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && data.state) {
+        const parsed = typeof data.state === 'string' ? JSON.parse(data.state) : data.state;
+        lastCloudSyncTime = data.updatedAt || new Date().toISOString();
+        notifySyncStatus('☁️ Restored from Firebase');
+        return mergeWithDefaults(parsed);
+      }
+    }
+    notifySyncStatus('☁️ No Cloud Backup Found');
+    return null;
+  } catch (err) {
+    console.warn('Cloud pull error:', err);
+    notifySyncStatus('⚠️ Cloud Pull Failed');
+    return null;
+  }
+}
+
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -119,6 +234,12 @@ export function saveState(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     saveToIndexedDB(state);
+    if (firestoreDb && firestoreFns) {
+      if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = setTimeout(() => {
+        pushStateToCloudNow(state);
+      }, 1200);
+    }
   } catch (err) {
     console.error('Error saving state:', err);
   }

@@ -40,7 +40,11 @@ import {
   getWeeklyTrainingSummary,
   getNextSessionAfter,
   exportStateAsJson,
-  generateCsvExport
+  generateCsvExport,
+  getCloudSyncStatus,
+  initFirebaseCloudSync,
+  pushStateToCloudNow,
+  pullStateFromCloudNow
 } from './store.js';
 
 import {
@@ -1981,14 +1985,19 @@ function renderSettingsView() {
       </div>
     </div>
 
-    <!-- 4. Export / Import Backup & CSV -->
+    <!-- 4. Firebase Cloud Firestore Sync & Local Backup (JSON / CSV) -->
     <div class="card" style="margin-bottom:16px;">
-      <h3 class="card-title">4. Data Backup (JSON) &amp; Log Exports (CSV)</h3>
+      <div class="card-header">
+        <h3 class="card-title">4. Firebase Cloud Sync &amp; Local Backups (JSON / CSV)</h3>
+        <span class="badge badge-completed" id="settings-cloud-status">${escapeHtml(getCloudSyncStatus().status)}</span>
+      </div>
       <p style="margin:0; font-size:0.86rem; color:var(--text-secondary);">
-        All data is stored locally in your browser (LocalStorage &amp; IndexedDB). Export a JSON backup regularly or download CSV spreadsheets of your logs.
+        Connected to Firebase project <strong>abhin-cut-tracker-2026</strong> (Cloud Firestore + LocalStorage + IndexedDB). Changes sync automatically while online and work offline at the gym.
       </p>
       <div class="form-actions">
-        <button type="button" class="btn-primary" data-action="export-json">⬇ Export All Data (JSON)</button>
+        <button type="button" class="btn-primary" data-action="cloud-push-now">☁️ Sync to Firebase Now</button>
+        <button type="button" class="btn-secondary" data-action="cloud-pull-now">⬇ Pull Latest from Firebase</button>
+        <button type="button" class="btn-secondary" data-action="export-json">⬇ Export All Data (JSON)</button>
         <label class="btn-secondary" style="margin:0; cursor:pointer;">
           ⬆ Import JSON Backup File
           <input type="file" accept=".json,application/json" data-action="import-json-file" class="sr-only" />
@@ -2812,6 +2821,29 @@ function handleActionClick(el, event) {
       break;
     }
 
+    case 'cloud-push-now': {
+      pushStateToCloudNow(appState).then((ok) => {
+        renderCurrentView();
+        showToast(ok ? '☁️ Synced state to Firebase Cloud Firestore!' : '⚠️ Cloud sync unavailable (saved locally).');
+      });
+      break;
+    }
+
+    case 'cloud-pull-now': {
+      pullStateFromCloudNow(appState?.userSettings?.cloudSyncKey).then((remote) => {
+        if (remote) {
+          appState = remote;
+          saveState(appState);
+          syncHeaderAndNavigation();
+          renderCurrentView();
+          showToast('☁️ Restored latest state from Firebase Cloud Firestore!');
+        } else {
+          showToast('No remote Firebase backup found yet.');
+        }
+      });
+      break;
+    }
+
     case 'export-csv': {
       const csvType = el.getAttribute('data-csv-type') || 'daily';
       const csvStr = generateCsvExport(appState, csvType);
@@ -3286,6 +3318,22 @@ function initApp() {
   bindGlobalEvents();
   syncHeaderAndNavigation();
   renderCurrentView();
+
+  initFirebaseCloudSync(
+    appState,
+    (remoteState) => {
+      appState = remoteState;
+      saveState(appState);
+      applyTheme(appState.userSettings.theme || 'dark');
+      syncHeaderAndNavigation();
+      renderCurrentView();
+      showToast('☁️ Loaded synced data from Firebase!');
+    },
+    (statusText) => {
+      const el = document.getElementById('settings-cloud-status');
+      if (el) el.textContent = statusText;
+    }
+  );
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
