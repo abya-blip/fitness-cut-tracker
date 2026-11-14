@@ -7,16 +7,16 @@ import {
 } from './data.js';
 import {
   getWeightTrendSummary,
-  getHabitStatusForDate,
-  getPlannedSessionForDate
+  getHabitStatusForDate
 } from './store.js';
 
-function renderEmptyChartState(title, message, icon = '📊') {
+function renderEmptyChartState(title, message, icon = '📊', actionHtml = '') {
   return `
     <div class="chart-empty-state" role="status">
       <span class="chart-empty-icon" aria-hidden="true">${icon}</span>
       <p class="chart-empty-title">${escapeHtml(title)}</p>
       <p class="chart-empty-sub">${escapeHtml(message)}</p>
+      ${actionHtml ? `<div style="margin-top:8px;">${actionHtml}</div>` : ''}
     </div>
   `;
 }
@@ -29,13 +29,14 @@ export function renderWeightChartSvg(state) {
     return renderEmptyChartState(
       'No weight entries logged yet',
       'Log your morning body weight on the Dashboard, Quick Log, or Progress tab to view daily points and your 7-day rolling average.',
-      '⚖️'
+      '⚖️',
+      `<button type="button" class="btn-secondary btn-sm" data-action="open-quick-log">+ Log Morning Weight</button>`
     );
   }
 
   const w = 640;
   const h = 260;
-  const pad = { top: 24, right: 28, bottom: 42, left: 52 };
+  const pad = { top: 24, right: 28, bottom: 42, left: 54 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
 
@@ -57,7 +58,6 @@ export function renderWeightChartSvg(state) {
     : pad.left + (idx / (series.length - 1)) * plotW;
   const yPos = (val) => pad.top + plotH - ((val - minY) / rangeY) * plotH;
 
-  // Grid lines
   const gridSteps = 4;
   let gridHtml = '';
   for (let i = 0; i <= gridSteps; i++) {
@@ -69,15 +69,15 @@ export function renderWeightChartSvg(state) {
     `;
   }
 
-  // Optional goal aspiration band (71-73 kg)
   const bandTop = yPos(Math.min(maxY, targetMax));
   const bandBottom = yPos(Math.max(minY, targetMin));
   const bandHeight = Math.max(0, bandBottom - bandTop);
 
-  // Rolling 7-day average line path
   const avgPoints = series.map((pt, i) => `${xPos(i)},${yPos(pt.rollingAvgKg)}`).join(' ');
+  const areaPoints = series.length > 1
+    ? `${xPos(0)},${pad.top + plotH} ${avgPoints} ${xPos(series.length - 1)},${pad.top + plotH}`
+    : '';
 
-  // X-axis labels
   const labelIndexes = new Set([0, Math.floor((series.length - 1) / 2), series.length - 1]);
   let xLabelsHtml = '';
   labelIndexes.forEach(idx => {
@@ -86,7 +86,6 @@ export function renderWeightChartSvg(state) {
     }
   });
 
-  // Dots for daily weight & rolling avg
   let dotsHtml = '';
   series.forEach((pt, i) => {
     const cx = xPos(i);
@@ -96,7 +95,7 @@ export function renderWeightChartSvg(state) {
       <circle cx="${cx}" cy="${cyRaw}" r="4.5" class="chart-dot-raw">
         <title>${pt.date}: ${pt.weightKg} kg (Daily reading)</title>
       </circle>
-      <circle cx="${cx}" cy="${cyAvg}" r="3.5" class="chart-dot-avg">
+      <circle cx="${cx}" cy="${cyAvg}" r="4" class="chart-dot-avg">
         <title>${pt.date}: ${pt.rollingAvgKg} kg (7-day rolling avg)</title>
       </circle>
     `;
@@ -111,8 +110,15 @@ export function renderWeightChartSvg(state) {
       </div>
       <svg viewBox="0 0 ${w} ${h}" class="responsive-svg-chart" role="img" aria-label="Body weight and 7-day rolling average chart">
         <title>Daily Body Weight & 7-Day Rolling Average</title>
+        <defs>
+          <linearGradient id="weightAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0" />
+          </linearGradient>
+        </defs>
         ${bandHeight > 0 ? `<rect x="${pad.left}" y="${bandTop}" width="${plotW}" height="${bandHeight}" class="chart-goal-band" />` : ''}
         ${gridHtml}
+        ${series.length > 1 ? `<polygon points="${areaPoints}" fill="url(#weightAreaGrad)" />` : ''}
         ${series.length > 1 ? `<polyline fill="none" points="${avgPoints}" class="chart-line-avg" />` : ''}
         ${dotsHtml}
         ${xLabelsHtml}
@@ -162,6 +168,10 @@ export function renderWaistChartSvg(state) {
   }
 
   const pts = entries.map((e, i) => `${xPos(i)},${yPos(Number(e.waistCm))}`).join(' ');
+  const areaPts = entries.length > 1
+    ? `${xPos(0)},${pad.top + plotH} ${pts} ${xPos(entries.length - 1)},${pad.top + plotH}`
+    : '';
+
   let dotsHtml = '';
   entries.forEach((e, i) => {
     const cx = xPos(i);
@@ -189,7 +199,14 @@ export function renderWaistChartSvg(state) {
       </div>
       <svg viewBox="0 0 ${w} ${h}" class="responsive-svg-chart" role="img" aria-label="Waist measurement over time chart">
         <title>Waist Measurement Over Time (cm)</title>
+        <defs>
+          <linearGradient id="waistAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.24" />
+            <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0" />
+          </linearGradient>
+        </defs>
         ${gridHtml}
+        ${entries.length > 1 ? `<polygon points="${areaPts}" fill="url(#waistAreaGrad)" />` : ''}
         ${entries.length > 1 ? `<polyline fill="none" points="${pts}" class="chart-line-waist" />` : ''}
         ${dotsHtml}
         ${xLabelsHtml}
@@ -203,13 +220,14 @@ export function renderNutritionChartSvg(state) {
   const entries = Object.values(state.dailyLogs)
     .filter(d => d && (Number(d.caloriesKcal) > 0 || Number(d.proteinG) > 0))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-14); // Show up to last 14 logged days for readability
+    .slice(-14);
 
   if (entries.length === 0) {
     return renderEmptyChartState(
       'No nutrition days logged yet',
       'Log your daily calories and protein in the Nutrition tab to compare daily intake against your 2,100 kcal and 150 g protein targets.',
-      '🥗'
+      '🥗',
+      `<button type="button" class="btn-secondary btn-sm" data-nav-trigger="nutrition">Go to Nutrition Logger →</button>`
     );
   }
 
@@ -245,10 +263,10 @@ export function renderNutritionChartSvg(state) {
     proPts.push(`${cx},${py}`);
 
     barsHtml += `
-      <rect x="${cx - barW / 2}" y="${barTop}" width="${barW}" height="${barH}" rx="3" class="chart-bar-cal">
+      <rect x="${cx - barW / 2}" y="${barTop}" width="${barW}" height="${barH}" rx="4" class="chart-bar-cal">
         <title>${e.date}: ${cal} kcal / ${pro}g protein</title>
       </rect>
-      <circle cx="${cx}" cy="${py}" r="4" class="chart-dot-pro">
+      <circle cx="${cx}" cy="${py}" r="4.5" class="chart-dot-pro">
         <title>${e.date}: ${pro} g protein (Target: ${proTarget} g)</title>
       </circle>
     `;
@@ -294,7 +312,6 @@ export function renderWeeklyRunningChartSvg(state) {
     };
   });
 
-  // Also include pre-programme or current week if any runs exist outside W1-W6
   const outOfPhaseRuns = state.runLogs.filter(r => r.date < '2026-11-23' || r.date > '2027-01-03');
   if (outOfPhaseRuns.length > 0) {
     const extraKm = outOfPhaseRuns.reduce((s, r) => s + (Number(r.distanceKm) || 0), 0);
@@ -336,10 +353,10 @@ export function renderWeeklyRunningChartSvg(state) {
     const hAct = Math.max(2, pad.top + plotH - yAct);
 
     barsHtml += `
-      <rect x="${cx - barW - 2}" y="${yPlan}" width="${barW}" height="${hPlan}" rx="3" class="chart-bar-planned">
+      <rect x="${cx - barW - 2}" y="${yPlan}" width="${barW}" height="${hPlan}" rx="4" class="chart-bar-planned">
         <title>${wk.label} Planned: ${wk.plannedKm} km</title>
       </rect>
-      <rect x="${cx + 2}" y="${yAct}" width="${barW}" height="${hAct}" rx="3" class="chart-bar-actual">
+      <rect x="${cx + 2}" y="${yAct}" width="${barW}" height="${hAct}" rx="4" class="chart-bar-actual">
         <title>${wk.label} Logged: ${wk.actualKm} km</title>
       </rect>
       <text x="${cx + 2 + barW / 2}" y="${yAct - 6}" text-anchor="middle" class="chart-value-label">${wk.actualKm > 0 ? wk.actualKm : ''}</text>
@@ -392,7 +409,8 @@ export function renderGymLoadChartSvg(state, selectedExerciseName = 'Barbell ben
     return renderEmptyChartState(
       `No completed sets logged for "${selectedExerciseName}" yet`,
       'Complete and check off working sets in the Workout tab to track load progression and volume history for this lift.',
-      '🏋️'
+      '🏋️',
+      `<button type="button" class="btn-secondary btn-sm" data-nav-trigger="workout">Open Gym Logger →</button>`
     );
   }
 
@@ -423,6 +441,10 @@ export function renderGymLoadChartSvg(state, selectedExerciseName = 'Barbell ben
   }
 
   const polyPts = points.map((p, i) => `${xPos(i)},${yPos(p.topWeightKg)}`).join(' ');
+  const areaPts = points.length > 1
+    ? `${xPos(0)},${pad.top + plotH} ${polyPts} ${xPos(points.length - 1)},${pad.top + plotH}`
+    : '';
+
   let dotsHtml = '';
   points.forEach((p, i) => {
     const cx = xPos(i);
@@ -443,7 +465,14 @@ export function renderGymLoadChartSvg(state, selectedExerciseName = 'Barbell ben
       </div>
       <svg viewBox="0 0 ${w} ${h}" class="responsive-svg-chart" role="img" aria-label="Gym exercise load progression chart">
         <title>Load History for ${escapeHtml(selectedExerciseName)}</title>
+        <defs>
+          <linearGradient id="gymAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.26" />
+            <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.0" />
+          </linearGradient>
+        </defs>
         ${gridHtml}
+        ${points.length > 1 ? `<polygon points="${areaPts}" fill="url(#gymAreaGrad)" />` : ''}
         ${points.length > 1 ? `<polyline fill="none" points="${polyPts}" class="chart-line-gym" />` : ''}
         ${dotsHtml}
       </svg>
@@ -472,7 +501,6 @@ export function renderHabitWeeklyChartSvg(state) {
     };
   });
 
-  // Also check current active week if pre-programme
   const preDays = Object.keys(state.habitLogs).filter(d => d < '2026-11-23');
   if (preDays.length > 0) {
     const sum = preDays.reduce((acc, d) => acc + getHabitStatusForDate(state, d).completionPct, 0);

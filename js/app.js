@@ -225,13 +225,28 @@ function syncHeaderAndNavigation() {
     const trend = getWeightTrendSummary(appState, appState.activeDate);
     const currWeight = trend.latestWeightKg ? `${trend.latestWeightKg} kg` : `${us.startingWeightKg} kg (start)`;
     sidebarProfile.innerHTML = `
-      <div style="font-weight:700; color:var(--text-primary); margin-bottom:6px;">Athlete Profile</div>
-      <div>Height: <strong>${us.heightCm} cm</strong></div>
-      <div>Weight: <strong>${currWeight}</strong></div>
-      <div>7d Avg: <strong>${trend.rolling7DayAvgKg ? trend.rolling7DayAvgKg + ' kg' : '—'}</strong></div>
-      <div>Target: <strong>${us.calorieTarget} kcal</strong> · <strong>${us.proteinTargetG}g P</strong></div>
-      <div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">Optional goal range: ${us.targetWeightMinKg}–${us.targetWeightMaxKg} kg</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-weight:800; color:var(--text-primary); font-size:0.86rem;">Athlete Telemetry</span>
+        <span class="badge badge-completed" style="font-size:0.68rem; padding:2px 7px;">Active</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+        <div style="background:var(--bg-surface); padding:6px 8px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <div style="font-size:0.68rem; color:var(--text-muted);">Weight</div>
+          <div style="font-weight:700; color:var(--text-primary);">${currWeight}</div>
+        </div>
+        <div style="background:var(--bg-surface); padding:6px 8px; border-radius:6px; border:1px solid var(--border-subtle);">
+          <div style="font-size:0.68rem; color:var(--text-muted);">7d Avg</div>
+          <div style="font-weight:700; color:var(--accent-primary);">${trend.rolling7DayAvgKg ? trend.rolling7DayAvgKg + ' kg' : '—'}</div>
+        </div>
+      </div>
+      <div>Height: <strong>${us.heightCm} cm</strong> · Goal: <strong>${us.targetWeightMinKg}–${us.targetWeightMaxKg} kg</strong></div>
+      <div style="margin-top:3px;">Daily Target: <strong>${us.calorieTarget} kcal</strong> · <strong>${us.proteinTargetG}g P</strong></div>
     `;
+  }
+
+  const cloudLabel = document.getElementById('header-cloud-label');
+  if (cloudLabel) {
+    cloudLabel.textContent = getCloudSyncStatus().status;
   }
 }
 
@@ -341,6 +356,29 @@ function renderDashboardView() {
     ? 'workout'
     : (planned.category === 'run' ? 'running' : 'habits');
 
+  // Compute programme timeline progress (Day 1 to Day 44)
+  const progStart = appState.userSettings.programmeStartDate || '2026-11-23';
+  const progEnd = appState.userSettings.programmeEndDate || '2027-01-05';
+  const totalProgDays = 44;
+  let timelineHeadline = '';
+  let timelineSub = '';
+  if (dateStr < progStart) {
+    timelineHeadline = `T-${phase.daysUntilStart || 0} Days`;
+    timelineSub = `Starts 23 Nov 2026 (44-day cut)`;
+  } else if (dateStr > progEnd) {
+    timelineHeadline = `44 / 44 Days`;
+    timelineSub = `Programme Completed`;
+  } else {
+    const dayIdx = Math.max(1, Math.min(totalProgDays, Math.round((parseLocalDate(dateStr) - parseLocalDate(progStart)) / 86400000) + 1));
+    timelineHeadline = `Day ${dayIdx} / ${totalProgDays}`;
+    timelineSub = `${phase.name} · ${Math.round((dayIdx / totalProgDays) * 100)}% elapsed`;
+  }
+
+  // SVG Ring helper (r = 21 => circumference = 131.95)
+  const ringCirc = 131.95;
+  const calOffset = (ringCirc - (calPct / 100) * ringCirc).toFixed(1);
+  const proOffset = (ringCirc - (proPct / 100) * ringCirc).toFixed(1);
+
   return `
     <div class="section-header">
       <div>
@@ -353,12 +391,48 @@ function renderDashboardView() {
       </div>
     </div>
 
+    <!-- Hero Telemetry Strip -->
+    <div class="telemetry-strip" role="region" aria-label="Daily performance telemetry">
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Programme Timeline</div>
+          <div class="telemetry-val">${escapeHtml(timelineHeadline)}</div>
+          <div class="telemetry-sub">${escapeHtml(timelineSub)}</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">🗓️</span>
+      </div>
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Calorie Budget</div>
+          <div class="telemetry-val">${nut.remaining.calories >= 0 ? nut.remaining.calories + ' kcal' : '+' + Math.abs(nut.remaining.calories) + ' kcal'}</div>
+          <div class="telemetry-sub">${nut.remaining.calories >= 0 ? 'Remaining of ' + nut.targets.calories + ' kcal' : 'Over ' + nut.targets.calories + ' kcal target'}</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">🔥</span>
+      </div>
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Protein Priority</div>
+          <div class="telemetry-val">${nut.todayLog.proteinG}g / ${nut.targets.protein}g</div>
+          <div class="telemetry-sub">${proPct}% of daily target</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">🥩</span>
+      </div>
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Daily Checklist</div>
+          <div class="telemetry-val">${habitsStatus.completedCount} / ${habitsStatus.totalCount}</div>
+          <div class="telemetry-sub">${habitsStatus.completionPct}% habits completed</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">☑️</span>
+      </div>
+    </div>
+
     ${preProgBanner}
     ${runBaseBanner}
 
     <div class="dashboard-grid">
       <!-- Card 1: Today's Plan -->
-      <section class="card" aria-labelledby="dash-plan-title">
+      <section class="card card-accent-gym" aria-labelledby="dash-plan-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-plan-title">1. Today's Plan</h3>
           <div style="display:flex; gap:6px; align-items:center;">
@@ -388,26 +462,37 @@ function renderDashboardView() {
       </section>
 
       <!-- Card 2: Daily Nutrition -->
-      <section class="card" aria-labelledby="dash-nut-title">
+      <section class="card card-accent-blue" aria-labelledby="dash-nut-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-nut-title">2. Daily Nutrition</h3>
           <button type="button" class="btn-secondary btn-sm" data-nav-trigger="nutrition">Log Macros →</button>
         </div>
 
-        <div class="progress-group">
-          <div class="progress-label-row">
-            <span>Calories</span>
-            <span><strong>${nut.todayLog.caloriesKcal}</strong> / ${nut.targets.calories} kcal (${nut.remaining.calories >= 0 ? nut.remaining.calories + ' left' : Math.abs(nut.remaining.calories) + ' over'})</span>
+        <!-- Visual Macro Rings for Calories & Protein -->
+        <div class="macro-rings-row">
+          <div class="macro-ring-box">
+            <svg class="ring-svg" viewBox="0 0 52 52" aria-hidden="true">
+              <circle class="ring-bg" cx="26" cy="26" r="21" />
+              <circle class="ring-meter" cx="26" cy="26" r="21" stroke="#3b82f6" stroke-dasharray="${ringCirc}" stroke-dashoffset="${calOffset}" />
+            </svg>
+            <div>
+              <div style="font-size:0.73rem; color:var(--text-secondary); font-weight:600;">Calories (${calPct}%)</div>
+              <div class="mono-num" style="font-size:0.98rem; font-weight:800;">${nut.todayLog.caloriesKcal} <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">/ ${nut.targets.calories}</span></div>
+              <div style="font-size:0.71rem; color:var(--text-muted);">${nut.remaining.calories >= 0 ? nut.remaining.calories + ' kcal left' : Math.abs(nut.remaining.calories) + ' kcal over'}</div>
+            </div>
           </div>
-          <div class="progress-track"><div class="progress-fill" style="width:${calPct}%"></div></div>
-        </div>
 
-        <div class="progress-group">
-          <div class="progress-label-row">
-            <span>Protein (Priority)</span>
-            <span><strong>${nut.todayLog.proteinG}g</strong> / ${nut.targets.protein}g (${nut.remaining.protein >= 0 ? nut.remaining.protein + 'g left' : '+' + Math.abs(nut.remaining.protein) + 'g'})</span>
+          <div class="macro-ring-box">
+            <svg class="ring-svg" viewBox="0 0 52 52" aria-hidden="true">
+              <circle class="ring-bg" cx="26" cy="26" r="21" />
+              <circle class="ring-meter" cx="26" cy="26" r="21" stroke="#8b5cf6" stroke-dasharray="${ringCirc}" stroke-dashoffset="${proOffset}" />
+            </svg>
+            <div>
+              <div style="font-size:0.73rem; color:var(--text-secondary); font-weight:600;">Protein (${proPct}%)</div>
+              <div class="mono-num" style="font-size:0.98rem; font-weight:800;">${nut.todayLog.proteinG}g <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">/ ${nut.targets.protein}g</span></div>
+              <div style="font-size:0.71rem; color:var(--text-muted);">${nut.remaining.protein >= 0 ? nut.remaining.protein + 'g remaining' : '+' + Math.abs(nut.remaining.protein) + 'g'}</div>
+            </div>
           </div>
-          <div class="progress-track"><div class="progress-fill fill-protein" style="width:${proPct}%"></div></div>
         </div>
 
         <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:8px;">
@@ -439,7 +524,7 @@ function renderDashboardView() {
       </section>
 
       <!-- Card 3: Weight Trend -->
-      <section class="card" aria-labelledby="dash-weight-title">
+      <section class="card card-accent-amber" aria-labelledby="dash-weight-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-weight-title">3. Weight Trend</h3>
           <button type="button" class="btn-secondary btn-sm" data-nav-trigger="progress">Charts →</button>
@@ -468,7 +553,7 @@ function renderDashboardView() {
       </section>
 
       <!-- Card 4: Today's Habits -->
-      <section class="card" aria-labelledby="dash-habits-title">
+      <section class="card card-accent-green" aria-labelledby="dash-habits-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-habits-title">4. Today's Habits (${habitsStatus.completionPct}%)</h3>
           <button type="button" class="btn-secondary btn-sm" data-nav-trigger="habits">All Habits →</button>
@@ -495,7 +580,7 @@ function renderDashboardView() {
       </section>
 
       <!-- Card 5: This Week's Training -->
-      <section class="card" aria-labelledby="dash-week-title">
+      <section class="card card-accent-run" aria-labelledby="dash-week-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-week-title">5. This Week's Training</h3>
           <span class="badge badge-planned">${formatShortDate(weekSummary.weekStart)} – ${formatShortDate(weekSummary.weekEnd)}</span>
@@ -519,14 +604,20 @@ function renderDashboardView() {
           </div>
         </div>
 
-        <div style="font-size:0.84rem; color:var(--text-secondary); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:auto;">
+        <div style="font-size:0.84rem; color:var(--text-secondary); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
           <span>👟 Steps today: <strong>${dailyLog.steps ?? 'Not logged'}</strong> (Target 8–10k)</span>
           <span>😴 Sleep: <strong>${dailyLog.sleepHours ? dailyLog.sleepHours + ' hrs' : 'Not logged'}</strong> (Target 7.5–9h)</span>
+        </div>
+
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:auto;">
+          <button type="button" class="btn-chip" data-action="quick-steps" data-steps="2000">+2,000 Steps</button>
+          <button type="button" class="btn-chip" data-action="quick-steps" data-steps-set="9000">Set 9,000 Steps</button>
+          <button type="button" class="btn-chip" data-action="quick-sleep" data-sleep="8">Set 8.0h Sleep</button>
         </div>
       </section>
 
       <!-- Card 6: Next Session -->
-      <section class="card" aria-labelledby="dash-next-title">
+      <section class="card card-accent-gym" aria-labelledby="dash-next-title">
         <div class="card-header">
           <h3 class="card-title" id="dash-next-title">6. Next Session</h3>
           ${renderCategoryBadge(nextSession.category, nextSession.isAssessment)}
@@ -792,6 +883,29 @@ function renderWorkoutView() {
   const planned = getPlannedSessionForDate(appState, dateStr);
   const session = getOrCreateWorkoutSession(appState, dateStr);
 
+  // Compute live workout telemetry
+  let totalSetsCount = 0;
+  let completedSetsCount = 0;
+  let totalVolumeKg = 0;
+  let completedExCount = 0;
+  const totalExCount = (session.exercises || []).length;
+
+  (session.exercises || []).forEach(ex => {
+    if (ex.completed) completedExCount++;
+    (ex.sets || []).forEach(st => {
+      totalSetsCount++;
+      if (st.completed) {
+        completedSetsCount++;
+        const w = Number(st.weightKg) || 0;
+        const r = Number(st.reps) || 0;
+        if (!ex.isTimed && w > 0 && r > 0) {
+          totalVolumeKg += w * r;
+        }
+      }
+    });
+  });
+  const setsProgressPct = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
+
   const exercisesHtml = (session.exercises || []).map((ex, exIdx) => {
     const lastRef = getLastUsedExercisePerformance(appState, ex.exerciseName, dateStr);
     const refText = lastRef
@@ -802,10 +916,14 @@ function renderWorkoutView() {
       <tr>
         <td><strong>#${st.setNumber}</strong></td>
         <td>
-          <input type="number" step="0.5" min="0" max="500" class="set-input"
-            aria-label="${escapeHtml(ex.exerciseName)} Set ${st.setNumber} Weight kg"
-            data-action="update-set-field" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-field="weightKg"
-            placeholder="kg" value="${st.weightKg ?? ''}" />
+          <div class="weight-stepper-cell">
+            <button type="button" class="btn-step-mini" data-action="step-set-weight" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-delta="-2.5" title="-2.5 kg">-2.5</button>
+            <input type="number" step="0.5" min="0" max="500" class="set-input"
+              aria-label="${escapeHtml(ex.exerciseName)} Set ${st.setNumber} Weight kg"
+              data-action="update-set-field" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-field="weightKg"
+              placeholder="kg" value="${st.weightKg ?? ''}" />
+            <button type="button" class="btn-step-mini" data-action="step-set-weight" data-ex-idx="${exIdx}" data-set-idx="${sIdx}" data-delta="2.5" title="+2.5 kg">+2.5</button>
+          </div>
         </td>
         <td>
           <input type="number" step="1" min="0" max="600" class="set-input"
@@ -906,6 +1024,35 @@ function renderWorkoutView() {
         <button type="button" class="btn-chip ${session.templateId === 'gym-b' ? 'active' : ''}" data-action="switch-workout-template" data-template="gym-b">Load Gym B (Wed)</button>
         <button type="button" class="btn-chip ${session.templateId === 'gym-c' ? 'active' : ''}" data-action="switch-workout-template" data-template="gym-c">Load Gym C (Fri)</button>
         <button type="button" class="btn-chip ${session.templateId === 'gym-assessment' ? 'active' : ''}" data-action="switch-workout-template" data-template="gym-assessment">Load Assessment</button>
+      </div>
+    </div>
+
+    <!-- Live Session Telemetry Strip -->
+    <div class="telemetry-strip" role="region" aria-label="Workout session progress">
+      <div class="telemetry-pill-card">
+        <div style="flex:1;">
+          <div class="telemetry-label">Working Sets Completed</div>
+          <div class="telemetry-val">${completedSetsCount} / ${totalSetsCount} (${setsProgressPct}%)</div>
+          <div class="progress-track" style="margin-top:6px; height:6px;">
+            <div class="progress-fill fill-success" style="width:${setsProgressPct}%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Exercises Completed</div>
+          <div class="telemetry-val">${completedExCount} / ${totalExCount}</div>
+          <div class="telemetry-sub">Full-Body Session</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">🏋️</span>
+      </div>
+      <div class="telemetry-pill-card">
+        <div>
+          <div class="telemetry-label">Logged Session Volume</div>
+          <div class="telemetry-val">${Math.round(totalVolumeKg).toLocaleString()} kg</div>
+          <div class="telemetry-sub">Weight × Reps across completed sets</div>
+        </div>
+        <span style="font-size:1.5rem;" aria-hidden="true">⚡</span>
       </div>
     </div>
 
@@ -2460,6 +2607,52 @@ function handleActionClick(el, event) {
     }
 
     // Water & Quick Preset on Dashboard / Nutrition
+    case 'add-rest-time': {
+      const addSec = Number(el.getAttribute('data-sec')) || 30;
+      startRestTimer(restSecondsRemaining + addSec);
+      showToast(`⏱️ Added +${addSec}s to Rest Timer`);
+      break;
+    }
+
+    case 'quick-steps': {
+      const log = getDailyLog(appState, dateStr);
+      const setExact = el.getAttribute('data-steps-set');
+      const addDelta = Number(el.getAttribute('data-steps')) || 0;
+      const nextSteps = setExact ? Number(setExact) : (Number(log.steps) || 0) + addDelta;
+      saveDailyLog(appState, dateStr, { steps: nextSteps });
+      if (nextSteps >= 8000) {
+        toggleHabitForDate(appState, dateStr, 'habit-steps', true);
+      }
+      renderCurrentView();
+      showToast(`👟 Steps updated: ${nextSteps.toLocaleString()} steps`);
+      break;
+    }
+
+    case 'quick-sleep': {
+      const hrs = Number(el.getAttribute('data-sleep')) || 8;
+      saveDailyLog(appState, dateStr, { sleepHours: hrs });
+      if (hrs >= 7.5) {
+        toggleHabitForDate(appState, dateStr, 'habit-sleep', true);
+      }
+      renderCurrentView();
+      showToast(`😴 Logged ${hrs} hours of sleep`);
+      break;
+    }
+
+    case 'step-set-weight': {
+      const exIdx = Number(el.getAttribute('data-ex-idx'));
+      const setIdx = Number(el.getAttribute('data-set-idx'));
+      const delta = Number(el.getAttribute('data-delta')) || 0;
+      const ws = appState.workoutSessions[dateStr];
+      if (ws && ws.exercises[exIdx] && ws.exercises[exIdx].sets[setIdx]) {
+        const curr = Number(ws.exercises[exIdx].sets[setIdx].weightKg) || 0;
+        ws.exercises[exIdx].sets[setIdx].weightKg = Math.max(0, Math.round((curr + delta) * 10) / 10);
+        saveState(appState);
+        renderCurrentView();
+      }
+      break;
+    }
+
     case 'quick-water': {
       const delta = Number(el.getAttribute('data-water')) || 0.25;
       const log = getDailyLog(appState, dateStr);
@@ -3332,6 +3525,8 @@ function initApp() {
     (statusText) => {
       const el = document.getElementById('settings-cloud-status');
       if (el) el.textContent = statusText;
+      const headerCloud = document.getElementById('header-cloud-label');
+      if (headerCloud) headerCloud.textContent = statusText;
     }
   );
 

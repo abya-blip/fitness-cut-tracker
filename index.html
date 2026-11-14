@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f141c" />
+  <meta name="theme-color" content="#0b0f17" />
   <meta name="description" content="6-Week Fitness Cut & Training Tracker (23 Nov 2026 – 5 Jan 2027). Personal gym, running, macro, habit and body measurement dashboard." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <title>6-Week Fitness Cut &amp; Training Tracker</title>
 </head>
@@ -21,8 +25,14 @@
       <div class="brand-group">
         <div class="brand-logo" aria-hidden="true">⚡</div>
         <div>
-          <h1 class="brand-title">Cut &amp; Training Tracker</h1>
-          <p class="brand-subtitle" id="header-programme-range">Programme: 23 Nov 2026 – 5 Jan 2027</p>
+          <div class="brand-title-row">
+            <h1 class="brand-title">Cut &amp; Training Tracker</h1>
+            <button type="button" class="cloud-status-pill" id="btn-cloud-sync-header" data-action="cloud-push-now" title="Firebase Cloud Firestore Status — Click to Sync Now">
+              <span class="cloud-dot" id="header-cloud-dot"></span>
+              <span id="header-cloud-label">Cloud Sync</span>
+            </button>
+          </div>
+          <p class="brand-subtitle" id="header-programme-range">Programme: 23 Nov 2026 – 5 Jan 2027 · 6-Week Cut</p>
         </div>
       </div>
 
@@ -33,21 +43,22 @@
             ⏱️ <span id="rest-timer-display">Rest Timer</span>
           </button>
           <div class="rest-timer-popover hidden" id="rest-timer-popover">
-            <div class="timer-popover-title">Set Rest Countdown</div>
+            <div class="timer-popover-title">Gym Rest Countdown</div>
             <div class="timer-preset-row">
               <button type="button" class="btn-chip" data-rest-sec="60">60s (Isolation)</button>
-              <button type="button" class="btn-chip" data-rest-sec="90">90s</button>
+              <button type="button" class="btn-chip" data-rest-sec="90">90s (Accessory)</button>
               <button type="button" class="btn-chip" data-rest-sec="120">2m (Compound)</button>
               <button type="button" class="btn-chip" data-rest-sec="180">3m (Heavy)</button>
             </div>
             <div class="timer-controls-row">
+              <button type="button" class="btn-chip" data-action="add-rest-time" data-sec="30">+30s</button>
               <button type="button" class="btn-secondary btn-sm" id="btn-cancel-timer">Reset / Stop</button>
             </div>
           </div>
         </div>
 
         <button type="button" class="btn-primary btn-quick-log" id="btn-open-quick-log" aria-label="Open Quick Log">
-          + Quick Log
+          <span>+ Quick Log</span>
         </button>
 
         <button type="button" class="btn-icon" id="btn-theme-toggle" aria-label="Toggle dark or light theme" title="Toggle Dark/Light Theme">

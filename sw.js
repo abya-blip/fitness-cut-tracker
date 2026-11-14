@@ -1,8 +1,9 @@
-const CACHE_NAME = 'fitness-cut-tracker-v1';
+const CACHE_NAME = 'fitness-cut-tracker-v3';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './icon.svg',
   './manifest.json',
   './js/bundle.js',
   './js/data.js',
@@ -30,6 +31,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((res) => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
